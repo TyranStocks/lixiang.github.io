@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Li-auto 购车金融计算器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            li: {
+              green: '#0A6640',       // 理想深绿（主色）
+              lightGreen: '#108585',  // 理想浅绿（hover状态）
+              darkGreen: '#073C3C',   // 理想暗绿（active状态）
+              bg: '#F5F9F9',          // 页面背景色
+              card: '#FFFFFF',        // 卡片背景色
+              text: '#1D2929',        // 主文字色
+              subText: '#667070',     // 次要文字色
+              border: '#E0E8E8',      // 边框色
+              success: '#10B981',     // 成功/补贴/等额本息标注色
+              error: '#F53F3F'        // 错误提示色
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'sans-serif'],
+          },
+          boxShadow: {
+            'li': '0 2px 8px rgba(0, 0, 0, 0.06)',
+            'li-hover': '0 6px 16px rgba(0, 0, 0, 0.08)',
+            'li-active': '0 3px 6px rgba(0, 0, 0, 0.07)',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .li-input {
+        @apply w-full px-4 py-3 border border-li-border rounded-xl bg-li-card 
+               focus:border-li-green focus:ring-2 focus:ring-li-green/20 
+               focus:outline-none transition-all duration-200;
+      }
+      .li-card {
+        @apply bg-li-card rounded-2xl shadow-li overflow-hidden transition-all duration-300
+               hover:shadow-li-hover;
+      }
+      .li-btn {
+        @apply px-6 py-3 rounded-xl font-medium transition-all duration-200
+               flex items-center justify-center gap-2;
+      }
+      .li-btn-primary {
+        @apply bg-li-green text-white hover:bg-li-lightGreen active:bg-li-darkGreen active:shadow-li-active;
+      }
+      .li-btn-outline {
+        @apply border border-li-border text-li-text hover:bg-li-bg;
+      }
+      .li-radio-label {
+        @apply flex items-center p-4 border border-li-border rounded-xl cursor-pointer
+               transition-all duration-200 hover:bg-li-bg/80;
+      }
+      .li-radio-checked {
+        @apply border-li-green bg-li-green/5;
+      }
+      .input-error {
+        @apply border-li-error focus:border-li-error focus:ring-2 focus:ring-li-error/20;
+      }
+      .error-message {
+        @apply text-li-error text-xs mt-1;
+      }
+      .stage-monthly {
+        @apply text-xs text-li-success mt-1; 
+      }
+      .epi-tag {
+        @apply text-xs text-li-success ml-2 font-normal; 
+      }
+      .daily-payment {
+        @apply text-xs text-li-subText mt-1; 
+      }
+    }
+  </style>
+</head>
+<body class="font-sans bg-li-bg min-h-screen p-4 md:p-6 lg:p-8">
+  <div class="w-full max-w-4xl mx-auto">
+    <div class="text-center mb-8 md:mb-10">
+      <h1 class="text-[clamp(1.7rem,4vw,2.2rem)] font-semibold text-li-text mb-2 flex items-center justify-center">
+        <i class="fa fa-car text-li-green mr-2"></i>
+        <span>Li-auto 购车金融计算器</span>
+      </h1>
+      <p class="text-li-subText text-base md:text-lg">版权所有：Li方天宇@13622120462</p>
+    </div>
+    
+    <div class="li-card mb-8">
+      <div class="p-6 md:p-8 border-b border-li-border">
+        <h2 class="text-lg md:text-xl font-medium text-li-text flex items-center">
+          <i class="fa fa-list-alt text-li-green mr-2"></i>购车价格计算
+        </h2>
+      </div>
+      
+      <div class="p-6 md:p-8">
+        <form id="carPriceForm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8">
+            <div class="space-y-6">
+              <div>
+                <label for="carPrice" class="block text-sm font-medium text-li-subText mb-2">
+                  车辆原价 (元) <span class="text-li-error"></span>
+                </label>
+                <input type="number" id="carPrice" name="carPrice" min="0" step="100" 
+                       class="li-input" placeholder="例如: 000000" required>
+                <div id="carPriceError" class="error-message hidden">请输入有效的车辆原价（大于0）</div>
+              </div>
+              
+              <div>
+                <label for="purchaseYear" class="block text-sm font-medium text-li-subText mb-2">
+                  购车年份
+                </label>
+                <select id="purchaseYear" name="purchaseYear" class="li-input">
+                  <option value="2025">2025年</option>
+                  <option value="2026">2026年</option>
+                </select>
+              </div>
+              
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <label class="block text-sm font-medium text-li-subText">
+                    价格减免 (元)
+                  </label>
+                  <button type="button" id="addDiscountBtn" class="text-li-green text-sm hover:text-li-lightGreen transition-colors">
+                    <i class="fa fa-plus-circle mr-1"></i>添加
+                  </button>
+                </div>
+                <div id="discountContainer" class="space-y-3">
+                  <div class="flex gap-3">
+                    <input type="number" name="discount[]" min="0" step="100" 
+                           class="li-input" placeholder="例如: 0" value="0">
+                    <button type="button" class="remove-btn w-12 h-12 border border-li-border rounded-xl bg-li-card 
+                                               hover:bg-li-bg transition-colors flex items-center justify-center">
+                      <i class="fa fa-times text-li-subText"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <div class="flex justify-between items-center mb-2">
+                  <label class="block text-sm font-medium text-li-subText">
+                    额外选装 (元)
+                  </label>
+                  <button type="button" id="addExtraBtn" class="text-li-green text-sm hover:text-li-lightGreen transition-colors">
+                    <i class="fa fa-plus-circle mr-1"></i>添加
+                  </button>
+                </div>
+                <div id="extraContainer" class="space-y-3">
+                  <div class="flex gap-3">
+                    <input type="number" name="extra[]" min="0" step="100" 
+                           class="li-input" placeholder="例如: 0" value="0">
+                    <button type="button" class="remove-btn w-12 h-12 border border-li-border rounded-xl bg-li-card 
+                                               hover:bg-li-bg transition-colors flex items-center justify-center">
+                      <i class="fa fa-times text-li-subText"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="space-y-6">
+              <div>
+                <label for="insurance" class="block text-sm font-medium text-li-subText mb-2">
+                  保险费用 (元) <span class="text-li-error"></span>
+                </label>
+                <input type="number" id="insurance" name="insurance" min="0" step="100" 
+                       class="li-input" placeholder="例如: 0000" required>
+                <div id="insuranceError" class="error-message hidden">请输入有效的保险费用（大于等于0）</div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-li-subText mb-3">
+                  充电桩配置
+                </label>
+                <div class="space-y-3">
+                  <div class="relative">
+                    <input type="radio" id="freeCharger" name="chargingPile" value="free" 
+                           class="peer sr-only" checked>
+                    <label for="freeCharger" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-check-circle text-li-green mr-3"></i>
+                      <span>赠送家用充电桩及安装服务</span>
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="buyCharger" name="chargingPile" value="buy" 
+                           class="peer sr-only">
+                    <label for="buyCharger" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-shopping-cart text-li-green mr-3"></i>
+                      <span>单独购买7kW充电桩 (3144元)</span>
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="noCharger" name="chargingPile" value="none" 
+                           class="peer sr-only">
+                    <label for="noCharger" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-times-circle text-li-subText mr-3"></i>
+                      <span>不需要充电桩</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-li-subText mb-3">
+                  政府补贴
+                </label>
+                <div class="space-y-3">
+                  <div class="relative">
+                    <input type="radio" id="noSubsidy" name="subsidyType" value="none" 
+                           class="peer sr-only" checked>
+                    <label for="noSubsidy" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-times-circle text-li-subText mr-3"></i>
+                      <span>无补贴</span>
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="replaceSubsidy" name="subsidyType" value="replace" 
+                           class="peer sr-only">
+                    <label for="replaceSubsidy" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-exchange text-li-success mr-3"></i>
+                      <span>置换补贴</span>
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="scrapSubsidy" name="subsidyType" value="scrap" 
+                           class="peer sr-only">
+                    <label for="scrapSubsidy" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-trash text-li-success mr-3"></i>
+                      <span>报废补贴</span>
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="newBuySubsidy" name="subsidyType" value="new" 
+                           class="peer sr-only">
+                    <label for="newBuySubsidy" class="li-radio-label peer-checked:li-radio-checked">
+                      <i class="fa fa-car text-li-success mr-3"></i>
+                      <span>新购补贴</span>
+                    </label>
+                  </div>
+                </div>
+                <div id="subsidyAmountContainer" class="mt-3 hidden">
+                  <label for="subsidyAmount" class="block text-sm font-medium text-li-subText mb-2">
+                    补贴金额 (元)
+                  </label>
+                  <input type="number" id="subsidyAmount" name="subsidyAmount" min="0" step="100" 
+                         class="li-input" placeholder="例如: 10000" value="10000">
+                  <div id="subsidyAmountError" class="error-message hidden">请输入有效的补贴金额（大于等于0）</div>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-1 gap-3">
+                <div>
+                  <label for="points" class="block text-sm font-medium text-li-subText mb-2">
+                    赠送积分权益
+                  </label>
+                  <input type="number" id="points" name="points" min="0" step="1" 
+                         class="li-input" placeholder="例如: 0" value="20000">
+                </div>
+                <div>
+                  <label for="chargingKwh" class="block text-sm font-medium text-li-subText mb-2">
+                    赠送充电度数 (度)
+                  </label>
+                  <input type="number" id="chargingKwh" name="chargingKwh" min="0" step="1" 
+                         class="li-input" placeholder="例如: 0" value="1000">
+                </div>
+              </div>
+              
+              <div>
+                <label for="registration" class="block text-sm font-medium text-li-subText mb-2">
+                  上牌费用 (元) <span class="text-li-error">*</span>
+                </label>
+                <input type="number" id="registration" name="registration" min="0" step="1" 
+                       class="li-input" placeholder="例如: 120" required>
+                <div id="registrationError" class="error-message hidden">请输入有效的上牌费用（大于等于0）</div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-li-subText mb-2">
+                  预计购置税 (元)
+                </label>
+                <div id="taxPreview" class="li-input bg-li-bg/50 text-li-text">
+                  --
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-8">
+            <label class="block text-sm font-medium text-li-subText mb-3">
+              付款方式
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols2 gap-4">
+              <div class="relative">
+                <input type="radio" id="fullPayment" name="paymentType" value="full" 
+                       class="peer sr-only" checked>
+                <label for="fullPayment" class="li-radio-label peer-checked:li-radio-checked justify-center py-5">
+                  <i class="fa fa-money text-li-green mr-3"></i>
+                  <span>全款购买</span>
+                </label>
+              </div>
+              <div class="relative">
+                <input type="radio" id="installmentPayment" name="paymentType" value="installment" 
+                       class="peer sr-only">
+                <label for="installmentPayment" class="li-radio-label peer-checked:li-radio-checked justify-center py-5">
+                  <i class="fa fa-credit-card text-li-green mr-3"></i>
+                  <span>分期付款（理想金融方案）</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div id="installmentOptions" class="mb-8 hidden border-l-4 border-li-green pl-6 py-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label class="block text-sm font-medium text-li-subText mb-2">首付方式</label>
+                <div class="grid grid-cols-3 gap-3">
+                  <div class="relative">
+                    <input type="radio" id="downPaymentByPercentage" name="downPaymentType" value="percentage" 
+                           class="peer sr-only" checked>
+                    <label for="downPaymentByPercentage" class="li-radio-label peer-checked:li-radio-checked p-3 text-sm">
+                      首付比例
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="downPaymentByAmount" name="downPaymentType" value="amount" 
+                           class="peer sr-only">
+                    <label for="downPaymentByAmount" class="li-radio-label peer-checked:li-radio-checked p-3 text-sm">
+                      首付金额
+                    </label>
+                  </div>
+                  <div class="relative">
+                    <input type="radio" id="downPaymentByLoan" name="downPaymentType" value="loan" 
+                           class="peer sr-only">
+                    <label for="downPaymentByLoan" class="li-radio-label peer-checked:li-radio-checked p-3 text-sm">
+                      贷款金额
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <div id="downPaymentPercentageContainer">
+                  <label for="downPayment" class="block text-sm font-medium text-li-subText mb-2">
+                    首付比例 (%)
+                  </label>
+                  <input type="number" id="downPayment" name="downPayment" min="0" max="100" step="5" 
+                         class="li-input" value="30" required>
+                  <div id="downPaymentError" class="error-message hidden">请输入有效的首付比例（0-100）</div>
+                </div>
+                
+                <div id="downPaymentAmountContainer" class="hidden">
+                  <label for="downPaymentAmount" class="block text-sm font-medium text-li-subText mb-2">
+                    首付金额 (元)
+                  </label>
+                  <input type="number" id="downPaymentAmount" name="downPaymentAmount" min="0" step="100" 
+                         class="li-input" value="0" required>
+                  <div id="downPaymentAmountError" class="error-message hidden">请输入有效的首付金额</div>
+                </div>
+                
+                <div id="loanAmountContainer" class="hidden">
+                  <label for="loanAmount" class="block text-sm font-medium text-li-subText mb-2">
+                    贷款金额 (元)
+                  </label>
+                  <input type="number" id="loanAmount" name="loanAmount" min="0" step="100" 
+                         class="li-input" value="0" required>
+                  <div id="loanAmountError" class="error-message hidden">请输入有效的贷款金额</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label for="loanTerm" class="block text-sm font-medium text-li-subText mb-2">
+                  贷款期限 (年)
+                </label>
+                <select id="loanTerm" name="loanTerm" class="li-input">
+                  <option value="1">1年</option>
+                  <option value="2">2年</option>
+                  <option value="3" selected>3年</option>
+                  <option value="4">4年</option>
+                  <option value="5">5年</option>
+                  <option value="6">6年</option>
+                  <option value="7" id="loanTerm7">7年</option>
+                  <option value="8">8年</option>
+                  <option value="9">9年</option>
+                  <option value="10">10年</option>
+                  <option value="15">15年</option>
+                  <option value="20">20年</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-li-subText mb-2">
+                  年费率选择（理想金融专属）
+                </label>
+                <select id="interestRate" name="interestRate" class="li-input">
+                  <option value="0">0% (零利息)</option>
+                  <option value="0.99">0.99%</option>
+                  <option value="1.49">1.49%</option>
+                  <option value="1.69">1.69%</option>
+                  <option value="1.69-epi">1.69% <span class="epi-tag">等额本息</span></option>
+                  <option value="1.99">1.99%</option>
+                  <option value="2.5">2.5%</option>
+                  <option value="5mix-0-1.99">5年：前3年0% + 后2年1.99%</option>
+                  <option value="7mix-0-1.99">7年：前3年0% + 后4年1.99%</option>
+                  <option value="7mix-0-5-1.99">7年：前5年0% + 后2年1.99%</option>
+                  <option value="7mix-0-5-2.5">7年：前5年0% + 后2年2.5%</option>
+                  <option value="7-0-2.5" id="rate7mix">7年混合（前3年0%+后4年2.5%）</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="li-card p-4">
+                <div class="text-sm text-li-subText mb-1">预计首付金额</div>
+                <div id="previewDownPayment" class="text-lg font-semibold text-li-text">--</div>
+              </div>
+              <div class="li-card p-4">
+                <div class="text-sm text-li-subText mb-1">预计贷款金额</div>
+                <div id="previewLoanAmount" class="text-lg font-semibold text-li-text">--</div>
+              </div>
+              <div class="li-card p-4">
+                <div class="text-sm text-li-subText mb-1">预计月供</div>
+                <div id="previewMonthlyPayment" class="text-lg font-semibold text-li-text">--</div>
+                <div id="previewStageMonthly" class="stage-monthly hidden"></div>
+                <div id="previewDailyPayment" class="daily-payment hidden">日供：--</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex justify-center">
+            <button type="submit" id="calculateBtn" class="li-btn li-btn-primary w-full md:w-auto px-8">
+              <i class="fa fa-calculator"></i>
+              <span>计算价格</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <div id="resultCard" class="li-card hidden">
+      <div class="p-6 md:p-8 border-b border-li-border">
+        <h2 class="text-lg md:text-xl font-medium text-li-text flex items-center">
+          <i class="fa fa-bar-chart text-li-green mr-2"></i>计算结果
+        </h2>
+      </div>
+      
+      <div class="p-6 md:p-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">车辆原价:</span>
+              <span id="resultCarPrice" class="font-medium text-li-text">--</span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">总减免金额:</span>
+              <span id="resultDiscount" class="font-medium text-li-success">--</span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">总选装费用:</span>
+              <span id="resultExtras" class="font-medium text-li-text">--</span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">购置税:</span>
+              <span id="resultTax" class="font-medium text-li-text">--</span>
+            </div>
+          </div>
+          
+          <div class="space-y-4">
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">保险费用:</span>
+              <span id="resultInsurance" class="font-medium text-li-text">--</span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">充电桩费用:</span>
+              <span id="resultChargingPile" class="font-medium text-li-text">--</span>
+            </div>
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">上牌费用:</span>
+              <span id="resultRegistration" class="font-medium text-li-text">--</span>
+            </div>
+            <div id="resultInterestContainer" class="flex justify-between items-center pb-3 border-b border-li-border hidden">
+              <span class="text-li-subText">贷款总利息:</span>
+              <span id="resultInterest" class="font-medium text-li-text">--</span>
+            </div>
+            
+            <div class="flex justify-between items-center pb-4 border-b-2 border-li-border pt-2">
+              <span class="text-base font-medium text-li-text">总计费用 (不含补贴):</span>
+              <span id="resultTotal" class="text-lg font-semibold text-li-text">--</span>
+            </div>
+            
+            <div class="flex justify-between items-center pb-3 border-b border-li-border">
+              <span class="text-li-subText">政府补贴:</span>
+              <span id="resultSubsidy" class="font-medium text-li-success">- --</span>
+            </div>
+            
+            <div class="flex justify-between items-center pb-3 border-b-2 border-li-green pt-2">
+              <span class="text-base font-medium text-li-text">补贴后实付价格:</span>
+              <span id="resultFinalPrice" class="text-xl font-semibold text-li-green">--</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="li-card p-5">
+            <div class="flex justify-between items-center">
+              <span class="text-li-subText">赠送积分权益:</span>
+              <span id="resultPoints" class="font-medium text-li-text">--</span>
+            </div>
+          </div>
+          <div class="li-card p-5">
+            <div class="flex justify-between items-center">
+              <span class="text-li-subText">赠送充电度数:</span>
+              <span id="resultChargingKwh" class="font-medium text-li-text">--</span>
+            </div>
+          </div>
+        </div>
+        
+        <div id="installmentDetails" class="mt-8 hidden">
+          <h3 class="text-lg font-medium text-li-text mb-4 flex items-center">
+            <i class="fa fa-credit-card text-li-green mr-2"></i>理想金融分期付款详情
+          </h3>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="li-card p-5">
+              <div class="text-sm text-li-subText mb-2">贷款金额</div>
+              <div id="resultLoanAmount" class="text-lg font-semibold text-li-text">--</div>
+            </div>
+            <div class="li-card p-5">
+              <div class="text-sm text-li-subText mb-2">首付金额</div>
+              <div id="resultDownPaymentAmount" class="text-lg font-semibold text-li-text">--</div>
+            </div>
+            <div class="li-card p-5">
+              <div class="text-sm text-li-subText mb-2">月供金额</div>
+              <div id="resultMonthlyPayment" class="text-lg font-semibold text-li-text">--</div>
+              <div id="resultStageMonthly" class="stage-monthly hidden"></div>
+              <div id="resultDailyPayment" class="daily-payment hidden">日供：--</div>
+            </div>
+          </div>
+          
+          <div class="li-card p-5">
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div>
+                <div class="text-sm text-li-subText mb-1">贷款期限</div>
+                <div id="resultLoanTerm" class="font-medium text-li-text">--</div>
+              </div>
+              <div>
+                <div class="text-sm text-li-subText mb-1">年费率</div>
+                <div id="resultInterestRate" class="font-medium text-li-text">--</div>
+              </div>
+              <div>
+                <div class="text-sm text-li-subText mb-1">总利息</div>
+                <div id="resultTotalInterest" class="font-medium text-li-text">--</div>
+              </div>
+              <div>
+                <div class="text-sm text-li-subText mb-1">年利息</div>
+                <div id="resultYearlyInterest" class="font-medium text-li-text">--</div>
+              </div>
+              <div>
+                <div class="text-sm text-li-subText mb-1">月利息</div>
+                <div id="resultMonthlyInterest" class="font-medium text-li-text">--</div>
+              </div>
+              <div>
+                <div class="text-sm text-li-subText mb-1">日利息</div>
+                <div id="resultDailyInterest" class="font-medium text-li-text">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-8 flex justify-center">
+          <button id="recalculateBtn" class="li-btn li-btn-outline">
+            <i class="fa fa-refresh"></i>
+            <span>重新计算</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  
+  <script>
+    // 核心DOM元素获取
+    const paymentTypeRadios = document.querySelectorAll('input[name="paymentType"]');
+    const installmentOptions = document.getElementById('installmentOptions');
+    const carPriceForm = document.getElementById('carPriceForm');
+    const resultCard = document.getElementById('resultCard');
+    const recalculateBtn = document.getElementById('recalculateBtn');
+    const addDiscountBtn = document.getElementById('addDiscountBtn');
+    const discountContainer = document.getElementById('discountContainer');
+    const addExtraBtn = document.getElementById('addExtraBtn');
+    const extraContainer = document.getElementById('extraContainer');
+    const carPriceInput = document.getElementById('carPrice');
+    const purchaseYearSelect = document.getElementById('purchaseYear');
+    const taxPreview = document.getElementById('taxPreview');
+    const subsidyTypeRadios = document.querySelectorAll('input[name="subsidyType"]');
+    const subsidyAmountContainer = document.getElementById('subsidyAmountContainer');
+    const subsidyAmountInput = document.getElementById('subsidyAmount');
+    const calculateBtn = document.getElementById('calculateBtn');
+    
+    const downPaymentTypeRadios = document.querySelectorAll('input[name="downPaymentType"]');
+    const downPaymentPercentageContainer = document.getElementById('downPaymentPercentageContainer');
+    const downPaymentAmountContainer = document.getElementById('downPaymentAmountContainer');
+    const loanAmountContainer = document.getElementById('loanAmountContainer');
+    const downPaymentInput = document.getElementById('downPayment');
+    const downPaymentAmountInput = document.getElementById('downPaymentAmount');
+    const loanAmountInput = document.getElementById('loanAmount');
+    const loanTermSelect = document.getElementById('loanTerm');
+    const interestRateSelect = document.getElementById('interestRate');
+    
+    // 月供/日供预览/结果元素
+    const previewMonthlyPayment = document.getElementById('previewMonthlyPayment');
+    const previewStageMonthly = document.getElementById('previewStageMonthly');
+    const previewDailyPayment = document.getElementById('previewDailyPayment');
+    const resultStageMonthly = document.getElementById('resultStageMonthly');
+    const resultDailyPayment = document.getElementById('resultDailyPayment');
+    
+    // 错误提示元素
+    const errorElements = {
+      carPrice: document.getElementById('carPriceError'),
+      insurance: document.getElementById('insuranceError'),
+      registration: document.getElementById('registrationError'),
+      subsidyAmount: document.getElementById('subsidyAmountError'),
+      downPayment: document.getElementById('downPaymentError'),
+      downPaymentAmount: document.getElementById('downPaymentAmountError'),
+      loanAmount: document.getElementById('loanAmountError')
+    };
+
+    // 付款方式切换
+    paymentTypeRadios.forEach(radio => {
+      radio.addEventListener('change', function() {
+        if (this.value === 'installment') {
+          installmentOptions.classList.remove('hidden');
+          installmentOptions.style.opacity = '0';
+          installmentOptions.style.transform = 'translateY(10px)';
+          setTimeout(() => {
+            installmentOptions.style.opacity = '1';
+            installmentOptions.style.transform = 'translateY(0)';
+          }, 10);
+          updateInstallmentPreview();
+        } else {
+          installmentOptions.classList.add('hidden');
+        }
+      });
+    });
+
+    // 首付方式切换
+    downPaymentTypeRadios.forEach(radio => {
+      radio.addEventListener('change', function() {
+        downPaymentPercentageContainer.classList.add('hidden');
+        downPaymentAmountContainer.classList.add('hidden');
+        loanAmountContainer.classList.add('hidden');
+        
+        if (this.value === 'percentage') {
+          downPaymentPercentageContainer.classList.remove('hidden');
+        } else if (this.value === 'amount') {
+          downPaymentAmountContainer.classList.remove('hidden');
+        } else if (this.value === 'loan') {
+          loanAmountContainer.classList.remove('hidden');
+        }
+        updateInstallmentPreview();
+      });
+    });
+
+    // 补贴类型切换
+    subsidyTypeRadios.forEach(radio => {
+      radio.addEventListener('change', function() {
+        if (this.value === 'none') {
+          subsidyAmountContainer.classList.add('hidden');
+        } else {
+          subsidyAmountContainer.classList.remove('hidden');
+          subsidyAmountContainer.style.opacity = '0';
+          subsidyAmountContainer.style.transform = 'translateY(10px)';
+          setTimeout(() => {
+            subsidyAmountContainer.style.opacity = '1';
+            subsidyAmountContainer.style.transform = 'translateY(0)';
+          }, 10);
+          // 补贴默认金额
+          if (this.value === 'replace') subsidyAmountInput.value = 10000;
+          else if (this.value === 'scrap') subsidyAmountInput.value = 8000;
+          else if (this.value === 'new') subsidyAmountInput.value = 5000;
+        }
+      });
+    });
+
+    // 添加减免项
+    addDiscountBtn.addEventListener('click', function() {
+      const newDiscountInput = document.createElement('div');
+      newDiscountInput.className = 'flex gap-3';
+      newDiscountInput.innerHTML = `
+        <input type="number" name="discount[]" min="0" step="100" 
+               class="li-input" placeholder="例如: 10000" value="0">
+        <button type="button" class="remove-btn w-12 h-12 border border-li-border rounded-xl bg-li-card 
+                                   hover:bg-li-bg transition-colors flex items-center justify-center">
+          <i class="fa fa-times text-li-subText"></i>
+        </button>
+      `;
+      newDiscountInput.style.opacity = '0';
+      newDiscountInput.style.transform = 'translateY(10px)';
+      discountContainer.appendChild(newDiscountInput);
+      setTimeout(() => {
+        newDiscountInput.style.opacity = '1';
+        newDiscountInput.style.transform = 'translateY(0)';
+      }, 10);
+      // 删除按钮事件
+      newDiscountInput.querySelector('.remove-btn').addEventListener('click', function() {
+        newDiscountInput.style.opacity = '0';
+        newDiscountInput.style.transform = 'translateY(10px)';
+        setTimeout(() => newDiscountInput.remove(), 200);
+        updateTaxPreview();
+        updateInstallmentPreview();
+      });
+      // 输入事件
+      newDiscountInput.querySelector('input').addEventListener('input', () => {
+        updateTaxPreview();
+        updateInstallmentPreview();
+      });
+      updateTaxPreview();
+      updateInstallmentPreview();
+    });
+
+    // 添加选装项
+    addExtraBtn.addEventListener('click', function() {
+      const newExtraInput = document.createElement('div');
+      newExtraInput.className = 'flex gap-3';
+      newExtraInput.innerHTML = `
+        <input type="number" name="extra[]" min="0" step="100" 
+               class="li-input" placeholder="例如: 21000（空气悬架）" value="0">
+        <button type="button" class="remove-btn w-12 h-12 border border-li-border rounded-xl bg-li-card 
+                                   hover:bg-li-bg transition-colors flex items-center justify-center">
+          <i class="fa fa-times text-li-subText"></i>
+        </button>
+      `;
+      newExtraInput.style.opacity = '0';
+      newExtraInput.style.transform = 'translateY(10px)';
+      extraContainer.appendChild(newExtraInput);
+      setTimeout(() => {
+        newExtraInput.style.opacity = '1';
+        newExtraInput.style.transform = 'translateY(0)';
+      }, 10);
+      // 删除按钮事件
+      newExtraInput.querySelector('.remove-btn').addEventListener('click', function() {
+        newExtraInput.style.opacity = '0';
+        newExtraInput.style.transform = 'translateY(10px)';
+        setTimeout(() => newExtraInput.remove(), 200);
+        updateTaxPreview();
+        updateInstallmentPreview();
+      });
+      // 输入事件
+      newExtraInput.querySelector('input').addEventListener('input', () => {
+        updateTaxPreview();
+        updateInstallmentPreview();
+      });
+      updateTaxPreview();
+      updateInstallmentPreview();
+    });
+
+    // 初始删除按钮事件
+    document.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const parent = this.parentElement;
+        parent.style.opacity = '0';
+        parent.style.transform = 'translateY(10px)';
+        setTimeout(() => parent.remove(), 200);
+        updateTaxPreview();
+        updateInstallmentPreview();
+      });
+    });
+
+    // 实时更新购置税和分期预览的事件绑定
+    carPriceInput.addEventListener('input', () => {updateTaxPreview(); updateInstallmentPreview();});
+    purchaseYearSelect.addEventListener('change', () => {updateTaxPreview(); updateInstallmentPreview();});
+    discountContainer.addEventListener('input', () => {updateTaxPreview(); updateInstallmentPreview();});
+    extraContainer.addEventListener('input', () => {updateTaxPreview(); updateInstallmentPreview();});
+    downPaymentInput.addEventListener('input', updateInstallmentPreview);
+    downPaymentAmountInput.addEventListener('input', updateInstallmentPreview);
+    loanAmountInput.addEventListener('input', updateInstallmentPreview);
+    loanTermSelect.addEventListener('change', updateInstallmentPreview);
+    interestRateSelect.addEventListener('change', updateInstallmentPreview);
+
+    // 购置税实时预览
+    function updateTaxPreview() {
+      const carPrice = parseFloat(carPriceInput.value) || 0;
+      const year = purchaseYearSelect.value;
+      const totalDiscount = getTotalDiscount();
+      const totalExtra = getTotalExtra();
+      const basePrice = carPrice - totalDiscount + totalExtra;
+      let tax = calculateTax(basePrice, year);
+      taxPreview.textContent = formatCurrency(tax);
+    }
+
+    // 核心：分期预览
+    function updateInstallmentPreview() {
+      if (installmentOptions.classList.contains('hidden')) return;
+      
+      const carPrice = parseFloat(carPriceInput.value) || 0;
+      const totalDiscount = getTotalDiscount();
+      const totalExtra = getTotalExtra();
+      const basePrice = carPrice - totalDiscount + totalExtra;
+      const selectedDownPaymentType = document.querySelector('input[name="downPaymentType"]:checked').value;
+      
+      // 计算首付/贷款金额
+      let downPaymentAmount = 0, loanAmount = 0;
+      if (selectedDownPaymentType === 'percentage') {
+        const rate = parseFloat(downPaymentInput.value) || 0;
+        downPaymentAmount = basePrice * (rate / 100);
+        loanAmount = basePrice - downPaymentAmount;
+      } else if (selectedDownPaymentType === 'amount') {
+        downPaymentAmount = parseFloat(downPaymentAmountInput.value) || 0;
+        loanAmount = basePrice - downPaymentAmount;
+      } else if (selectedDownPaymentType === 'loan') {
+        loanAmount = parseFloat(loanAmountInput.value) || 0;
+        downPaymentAmount = basePrice - loanAmount;
+      }
+
+      // 重置预览
+      previewStageMonthly.classList.add('hidden');
+      previewDailyPayment.classList.add('hidden');
+      previewStageMonthly.innerHTML = '';
+      previewDailyPayment.innerHTML = '';
+      let monthlyPayment = 0, interest = 0, dailyPayment = 0;
+      const loanTerm = parseInt(loanTermSelect.value) || 0;
+      const interestRateVal = interestRateSelect.value;
+      const is7MixRate = interestRateVal === '7-0-2.5';
+      const is5MixRate = interestRateVal === '5mix-0-1.99';
+      const is7NewMixRate = interestRateVal === '7mix-0-1.99';
+      const is7LongMixRate = interestRateVal === '7mix-0-5-1.99';
+      const is7Long25Rate = interestRateVal === '7mix-0-5-2.5';
+      const isEPI = interestRateSelect.value === '1.69-epi'; 
+      const pureRate = parseFloat(interestRateVal.split('-')[0]) || 0;
+
+      // 强制期限
+      if (is7MixRate && loanTerm !== 7) loanTermSelect.value = 7;
+      if (is5MixRate && loanTerm !== 5) loanTermSelect.value = 5;
+      if (is7NewMixRate && loanTerm !== 7) loanTermSelect.value = 7;
+      if (is7LongMixRate && loanTerm !== 7) loanTermSelect.value = 7;
+      if (is7Long25Rate && loanTerm !== 7) loanTermSelect.value = 7;
+
+      // 1. 7年混合费率 (旧版2.5%)
+      if (is7MixRate) {
+        const totalPeriod = 7 * 12;
+        const mixRate = 2.5;
+        const monthlyPrincipal = loanAmount / totalPeriod;
+        const monthlyInterest = loanAmount * (mixRate / 100) / 12;
+        const preMonthly = monthlyPrincipal;
+        const afterMonthly = monthlyPrincipal + monthlyInterest;
+        const preDaily = preMonthly / 30;
+        const afterDaily = afterMonthly / 30;
+        interest = loanAmount * (mixRate / 100) * 4;
+        previewMonthlyPayment.textContent = `分阶段`;
+        previewStageMonthly.classList.remove('hidden');
+        previewDailyPayment.classList.remove('hidden');
+        previewStageMonthly.innerHTML = `前36期：${formatCurrency(preMonthly)}，后48期：${formatCurrency(afterMonthly)}`;
+        previewDailyPayment.innerHTML = `日供：前36期${formatCurrency(preDaily)}，后48期${formatCurrency(afterDaily)}`;
+      } 
+      // 2. 5年混合费率：前3年0息 + 后2年1.99%
+      else if (is5MixRate) {
+        const totalPeriod = 5 * 12;
+        const mixRate = 1.99;
+        const monthlyPrincipal = loanAmount / totalPeriod;
+        const monthlyInterest = loanAmount * (mixRate / 100) / 12;
+        const preMonthly = monthlyPrincipal;
+        const afterMonthly = monthlyPrincipal + monthlyInterest;
+        const preDaily = preMonthly / 30;
+        const afterDaily = afterMonthly / 30;
+        interest = loanAmount * (mixRate / 100) * 2;
+        previewMonthlyPayment.textContent = `分阶段`;
+        previewStageMonthly.classList.remove('hidden');
+        previewDailyPayment.classList.remove('hidden');
+        previewStageMonthly.innerHTML = `前36期：${formatCurrency(preMonthly)}，后24期：${formatCurrency(afterMonthly)}`;
+        previewDailyPayment.innerHTML = `日供：前36期${formatCurrency(preDaily)}，后24期${formatCurrency(afterDaily)}`;
+      }
+      // 3. 7年新混合费率：前3年0息 + 后4年1.99%
+      else if (is7NewMixRate) {
+        const totalPeriod = 7 * 12;
+        const mixRate = 1.99;
+        const monthlyPrincipal = loanAmount / totalPeriod;
+        const monthlyInterest = loanAmount * (mixRate / 100) / 12;
+        const preMonthly = monthlyPrincipal;
+        const afterMonthly = monthlyPrincipal + monthlyInterest;
+        const preDaily = preMonthly / 30;
+        const afterDaily = afterMonthly / 30;
+        interest = loanAmount * (mixRate / 100) * 4;
+        previewMonthlyPayment.textContent = `分阶段`;
+        previewStageMonthly.classList.remove('hidden');
+        previewDailyPayment.classList.remove('hidden');
+        previewStageMonthly.innerHTML = `前36期：${formatCurrency(preMonthly)}，后48期：${formatCurrency(afterMonthly)}`;
+        previewDailyPayment.innerHTML = `日供：前36期${formatCurrency(preDaily)}，后48期${formatCurrency(afterDaily)}`;
+      }
+      // 4. 7年超长免息：前5年0息 + 后2年1.99%
+      else if (is7LongMixRate) {
+        const totalPeriod = 7 * 12;
+        const mixRate = 1.99;
+        const monthlyPrincipal = loanAmount / totalPeriod;
+        const monthlyInterest = loanAmount * (mixRate / 100) / 12;
+        const preMonthly = monthlyPrincipal;
+        const afterMonthly = monthlyPrincipal + monthlyInterest;
+        const preDaily = preMonthly / 30;
+        const afterDaily = afterMonthly / 30;
+        interest = loanAmount * (mixRate / 100) * 2;
+        previewMonthlyPayment.textContent = `分阶段`;
+        previewStageMonthly.classList.remove('hidden');
+        previewDailyPayment.classList.remove('hidden');
+        previewStageMonthly.innerHTML = `前60期：${formatCurrency(preMonthly)}，后24期：${formatCurrency(afterMonthly)}`;
+        previewDailyPayment.innerHTML = `日供：前60期${formatCurrency(preDaily)}，后24期${formatCurrency(afterDaily)}`;
+      }
+      // 5. 7年超长免息：前5年0息 + 后2年2.5%
+      else if (is7Long25Rate) {
+        const totalPeriod = 7 * 12;
+        const mixRate = 2.5;
+        const monthlyPrincipal = loanAmount / totalPeriod;
+        const monthlyInterest = loanAmount * (mixRate / 100) / 12;
+        const preMonthly = monthlyPrincipal;
+        const afterMonthly = monthlyPrincipal + monthlyInterest;
+        const preDaily = preMonthly / 30;
+        const afterDaily = afterMonthly / 30;
+        interest = loanAmount * (mixRate / 100) * 2;
+        previewMonthlyPayment.textContent = `分阶段`;
+        previewStageMonthly.classList.remove('hidden');
+        previewDailyPayment.classList.remove('hidden');
+        previewStageMonthly.innerHTML = `前60期：${formatCurrency(preMonthly)}，后24期：${formatCurrency(afterMonthly)}`;
+        previewDailyPayment.innerHTML = `日供：前60期${formatCurrency(preDaily)}，后24期${formatCurrency(afterDaily)}`;
+      }
+      // 6. 1.69% 严格等额本息计算
+      else if (isEPI && loanTerm > 0 && loanAmount > 0) {
+        const annualRate = 1.69;
+        const monthlyRate = annualRate / 100 / 12;
+        const periods = loanTerm * 12;
+        monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, periods)) / (Math.pow(1 + monthlyRate, periods) - 1);
+        dailyPayment = monthlyPayment / 30;
+        interest = monthlyPayment * periods - loanAmount;
+        previewMonthlyPayment.textContent = formatCurrency(monthlyPayment);
+        previewDailyPayment.classList.remove('hidden');
+        previewDailyPayment.innerHTML = `日供：${formatCurrency(dailyPayment)}`;
+      } 
+      // 7. 其他普通费率
+      else {
+        const rate = pureRate;
+        interest = loanAmount * (rate / 100) * loanTerm;
+        monthlyPayment = loanTerm > 0 ? (loanAmount + interest) / (loanTerm * 12) : 0;
+        dailyPayment = monthlyPayment / 30;
+        previewMonthlyPayment.textContent = formatCurrency(monthlyPayment);
+        if (monthlyPayment > 0) {
+          previewDailyPayment.classList.remove('hidden');
+          previewDailyPayment.innerHTML = `日供：${formatCurrency(dailyPayment)}`;
+        }
+      }
+
+      // 更新首付/贷款预览
+      previewDownPayment.textContent = formatCurrency(downPaymentAmount);
+      previewLoanAmount.textContent = formatCurrency(loanAmount);
+    }
+
+    // 购置税计算规则
+    function calculateTax(basePrice, year) {
+      const threshold = 339000;
+      if (year === '2025') {
+        return basePrice <= threshold ? 0 : (basePrice / 11.3) - 30000;
+      } else {
+        return basePrice <= threshold ? (basePrice / 11.3) / 2 : (basePrice / 11.3) - 15000;
+      }
+    }
+
+    // 表单验证
+    function validateForm() {
+      let isValid = true;
+      Object.values(errorElements).forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.input-error').forEach(el => el.remove('input-error'));
+      
+      const carPrice = parseFloat(carPriceInput.value) || 0;
+      if (carPrice <= 0) {showError('carPrice', '请输入有效的车辆原价（大于0）'); isValid = false;}
+      
+      const insurance = parseFloat(document.getElementById('insurance').value) || 0;
+      if (insurance < 0) {showError('insurance', '保险费用不能为负数'); isValid = false;}
+      
+      const registration = parseFloat(document.getElementById('registration').value) || 0;
+      if (registration < 0) {showError('registration', '上牌费用不能为负数'); isValid = false;}
+      
+      if (!subsidyAmountContainer.classList.contains('hidden')) {
+        const subsidy = parseFloat(subsidyAmountInput.value) || 0;
+        if (subsidy < 0) {showError('subsidyAmount', '补贴金额不能为负数'); isValid = false;}
+      }
+      
+      if (!installmentOptions.classList.contains('hidden')) {
+        const basePrice = carPrice - getTotalDiscount() + getTotalExtra();
+        const type = document.querySelector('input[name="downPaymentType"]:checked').value;
+        if (type === 'percentage') {
+          const rate = parseFloat(downPaymentInput.value) || 0;
+          if (rate < 0 || rate > 100) {showError('downPayment', '首付比例必须在0-100之间'); isValid = false;}
+        } else if (type === 'amount') {
+          const amount = parseFloat(downPaymentAmountInput.value) || 0;
+          if (amount < 0 || amount > basePrice) {showError('downPaymentAmount', `首付金额不能超过${formatCurrency(basePrice)}`); isValid = false;}
+        } else if (type === 'loan') {
+          const loan = parseFloat(loanAmountInput.value) || 0;
+          if (loan < 0 || loan > basePrice) {showError('loanAmount', `贷款金额不能超过${formatCurrency(basePrice)}`); isValid = false;}
+        }
+      }
+      return isValid;
+    }
+
+    // 获取总减免
+    function getTotalDiscount() {
+      let total = 0;
+      discountContainer.querySelectorAll('input[name="discount[]"]').forEach(input => {
+        total += parseFloat(input.value) || 0;
+      });
+      return total;
+    }
+
+    // 获取总选装
+    function getTotalExtra() {
+      let total = 0;
+      extraContainer.querySelectorAll('input[name="extra[]"]').forEach(input => {
+        total += parseFloat(input.value) || 0;
+      });
+      return total;
+    }
+
+    // 显示错误
+    function showError(fieldName, message) {
+      const errorEl = errorElements[fieldName];
+      if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+        document.getElementById(fieldName).classList.add('input-error');
+      }
+    }
+
+    // 表单提交
+    carPriceForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!validateForm()) return;
+      
+      calculateBtn.disabled = true;
+      calculateBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 计算中...';
+      
+      // 基础参数获取
+      const carPrice = parseFloat(document.getElementById('carPrice').value) || 0;
+      const year = document.getElementById('purchaseYear').value;
+      const insurance = parseFloat(document.getElementById('insurance').value) || 0;
+      const registration = parseFloat(document.getElementById('registration').value) || 0;
+      const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
+      const points = parseInt(document.getElementById('points').value) || 0;
+      const chargingKwh = parseInt(document.getElementById('chargingKwh').value) || 0;
+      const chargingPileValue = document.querySelector('input[name="chargingPile"]:checked').value;
+      const chargingPileFee = chargingPileValue === 'buy' ? 3144 : 0;
+      const subsidyType = document.querySelector('input[name="subsidyType"]:checked').value;
+      const subsidyAmount = subsidyType === 'none' ? 0 : parseFloat(subsidyAmountInput.value) || 0;
+      const totalDiscount = getTotalDiscount();
+      const totalExtra = getTotalExtra();
+      const basePrice = carPrice - totalDiscount + totalExtra;
+      const tax = calculateTax(basePrice, year);
+      
+      // 基础费用计算
+      let totalPrice = basePrice + tax + insurance + registration + chargingPileFee;
+      let interest = 0, loanAmount = 0, downPaymentAmount = 0, monthlyPayment = 0;
+      let loanTerm = 0, interestRate = 0, yearlyInterest = 0, monthlyInterestCal = 0, dailyInterest = 0;
+      let is7MixRate = false, is5MixRate = false, is7NewMixRate = false, is7LongMixRate = false, is7Long25Rate = false, preMonthly = 0, afterMonthly = 0, preDaily = 0, afterDaily = 0, dailyPayment = 0;
+      const isEPI = interestRateSelect.value === '1.69-epi'; 
+
+      // 分期付款计算
+      if (paymentType === 'installment') {
+        loanTerm = parseInt(loanTermSelect.value) || 0;
+        const interestRateVal = interestRateSelect.value;
+        const selectedDownPaymentType = document.querySelector('input[name="downPaymentType"]:checked').value;
+        is7MixRate = interestRateVal === '7-0-2.5';
+        is5MixRate = interestRateVal === '5mix-0-1.99';
+        is7NewMixRate = interestRateVal === '7mix-0-1.99';
+        is7LongMixRate = interestRateVal === '7mix-0-5-1.99';
+        is7Long25Rate = interestRateVal === '7mix-0-5-2.5';
+        const pureRate = parseFloat(interestRateVal.split('-')[0]) || 0;
+        
+        // 计算首付/贷款金额
+        if (selectedDownPaymentType === 'percentage') {
+          const rate = parseFloat(downPaymentInput.value) / 100 || 0;
+          downPaymentAmount = basePrice * rate;
+          loanAmount = basePrice - downPaymentAmount;
+        } else if (selectedDownPaymentType === 'amount') {
+          downPaymentAmount = parseFloat(downPaymentAmountInput.value) || 0;
+          loanAmount = basePrice - downPaymentAmount;
+        } else if (selectedDownPaymentType === 'loan') {
+          loanAmount = parseFloat(loanAmountInput.value) || 0;
+          downPaymentAmount = basePrice - loanAmount;
+        }
+
+        // 1. 7年混合费率 (旧版2.5%)
+        if (is7MixRate) {
+          const mixRate = 2.5;
+          interest = loanAmount * (mixRate / 100) * 4;
+          const totalPeriod = 7 * 12;
+          const monthlyPrincipal = loanAmount / totalPeriod;
+          monthlyInterestCal = loanAmount * (mixRate / 100) / 12;
+          preMonthly = monthlyPrincipal;
+          afterMonthly = monthlyPrincipal + monthlyInterestCal;
+          preDaily = preMonthly / 30;
+          afterDaily = afterMonthly / 30;
+          interestRate = mixRate;
+        } 
+        // 2. 5年混合费率：前3年0息 + 后2年1.99%
+        else if (is5MixRate) {
+          const mixRate = 1.99;
+          interest = loanAmount * (mixRate / 100) * 2;
+          const totalPeriod = 5 * 12;
+          const monthlyPrincipal = loanAmount / totalPeriod;
+          monthlyInterestCal = loanAmount * (mixRate / 100) / 12;
+          preMonthly = monthlyPrincipal;
+          afterMonthly = monthlyPrincipal + monthlyInterestCal;
+          preDaily = preMonthly / 30;
+          afterDaily = afterMonthly / 30;
+          interestRate = mixRate;
+        }
+        // 3. 7年新混合费率：前3年0息 + 后4年1.99%
+        else if (is7NewMixRate) {
+          const mixRate = 1.99;
+          interest = loanAmount * (mixRate / 100) * 4;
+          const totalPeriod = 7 * 12;
+          const monthlyPrincipal = loanAmount / totalPeriod;
+          monthlyInterestCal = loanAmount * (mixRate / 100) / 12;
+          preMonthly = monthlyPrincipal;
+          afterMonthly = monthlyPrincipal + monthlyInterestCal;
+          preDaily = preMonthly / 30;
+          afterDaily = afterMonthly / 30;
+          interestRate = mixRate;
+        }
+        // 4. 7年超长免息：前5年0息 + 后2年1.99%
+        else if (is7LongMixRate) {
+          const mixRate = 1.99;
+          interest = loanAmount * (mixRate / 100) * 2;
+          const totalPeriod = 7 * 12;
+          const monthlyPrincipal = loanAmount / totalPeriod;
+          monthlyInterestCal = loanAmount * (mixRate / 100) / 12;
+          preMonthly = monthlyPrincipal;
+          afterMonthly = monthlyPrincipal + monthlyInterestCal;
+          preDaily = preMonthly / 30;
+          afterDaily = afterMonthly / 30;
+          interestRate = mixRate;
+        }
+        // 5. 7年超长免息：前5年0息 + 后2年2.5%
+        else if (is7Long25Rate) {
+          const mixRate = 2.5;
+          interest = loanAmount * (mixRate / 100) * 2;
+          const totalPeriod = 7 * 12;
+          const monthlyPrincipal = loanAmount / totalPeriod;
+          monthlyInterestCal = loanAmount * (mixRate / 100) / 12;
+          preMonthly = monthlyPrincipal;
+          afterMonthly = monthlyPrincipal + monthlyInterestCal;
+          preDaily = preMonthly / 30;
+          afterDaily = afterMonthly / 30;
+          interestRate = mixRate;
+        }
+        // 6. 1.69% 严格等额本息
+        else if (isEPI && loanTerm > 0 && loanAmount > 0) {
+          interestRate = 1.69;
+          const monthlyRate = interestRate / 100 / 12;
+          const periods = loanTerm * 12;
+          monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, periods)) / (Math.pow(1 + monthlyRate, periods) - 1);
+          interest = monthlyPayment * periods - loanAmount;
+          yearlyInterest = interest / loanTerm;
+          monthlyInterestCal = yearlyInterest / 12;
+          dailyInterest = yearlyInterest / 365;
+          dailyPayment = monthlyPayment / 30;
+        } 
+        // 7. 其他普通费率
+        else {
+          interestRate = pureRate;
+          interest = loanAmount * (interestRate / 100) * loanTerm;
+          monthlyPayment = loanTerm > 0 ? (loanAmount + interest) / (loanTerm * 12) : 0;
+          yearlyInterest = loanTerm > 0 ? interest / loanTerm : 0;
+          monthlyInterestCal = yearlyInterest / 12;
+          dailyInterest = yearlyInterest / 365;
+          dailyPayment = monthlyPayment / 30;
+        }
+        totalPrice += interest;
+      }
+
+      // 最终价格
+      const finalPrice = Math.max(0, totalPrice - subsidyAmount);
+
+      // 填充结果
+      document.getElementById('resultCarPrice').textContent = formatCurrency(carPrice);
+      document.getElementById('resultDiscount').textContent = formatCurrency(totalDiscount);
+      document.getElementById('resultExtras').textContent = formatCurrency(totalExtra);
+      document.getElementById('resultTax').textContent = formatCurrency(tax);
+      document.getElementById('resultInsurance').textContent = formatCurrency(insurance);
+      document.getElementById('resultChargingPile').textContent = formatCurrency(chargingPileFee);
+      document.getElementById('resultRegistration').textContent = formatCurrency(registration);
+      document.getElementById('resultTotal').textContent = formatCurrency(totalPrice);
+      document.getElementById('resultSubsidy').textContent = subsidyAmount > 0 ? `- ${formatCurrency(subsidyAmount)}` : '0元';
+      document.getElementById('resultFinalPrice').textContent = formatCurrency(finalPrice);
+      document.getElementById('resultPoints').textContent = `${formatNumber(points)}积分`;
+      document.getElementById('resultChargingKwh').textContent = `${chargingKwh}度`;
+
+      // 分期详情填充
+      const resultInterestContainer = document.getElementById('resultInterestContainer');
+      const installmentDetails = document.getElementById('installmentDetails');
+      if (paymentType === 'installment') {
+        resultInterestContainer.classList.remove('hidden');
+        document.getElementById('resultInterest').textContent = formatCurrency(interest);
+        installmentDetails.classList.remove('hidden');
+        installmentDetails.style.opacity = '0';
+        installmentDetails.style.transform = 'translateY(10px)';
+        setTimeout(() => {
+          installmentDetails.style.opacity = '1';
+          installmentDetails.style.transform = 'translateY(0)';
+        }, 10);
+        
+        document.getElementById('resultLoanAmount').textContent = formatCurrency(loanAmount);
+        document.getElementById('resultDownPaymentAmount').textContent = formatCurrency(downPaymentAmount);
+        document.getElementById('resultLoanTerm').textContent = `${loanTerm}年 (${loanTerm * 12}个月)`;
+        document.getElementById('resultInterestRate').textContent = isEPI 
+          ? `1.69%（等额本息）` 
+          : (is5MixRate ? '前3年0% + 后2年1.99%' : 
+             (is7NewMixRate ? '前3年0% + 后4年1.99%' :
+             (is7LongMixRate ? '前5年0% + 后2年1.99%' :
+             (is7Long25Rate ? '前5年0% + 后2年2.5%' :
+             (is7MixRate ? '前3年0%+后4年2.5%' : `${interestRate}%`)))));
+        document.getElementById('resultTotalInterest').textContent = formatCurrency(interest);
+
+        // 月供/日供/利息展示
+        if (is5MixRate || is7MixRate || is7NewMixRate || is7LongMixRate || is7Long25Rate) {
+          document.getElementById('resultMonthlyPayment').textContent = `分阶段`;
+          resultStageMonthly.classList.remove('hidden');
+          resultDailyPayment.classList.remove('hidden');
+          resultStageMonthly.innerHTML = is5MixRate
+            ? `前36期：${formatCurrency(preMonthly)}，后24期：${formatCurrency(afterMonthly)}`
+            : is7Long25Rate
+              ? `前60期：${formatCurrency(preMonthly)}，后24期：${formatCurrency(afterMonthly)}`
+              : is7LongMixRate
+                ? `前60期：${formatCurrency(preMonthly)}，后24期：${formatCurrency(afterMonthly)}`
+                : `前36期：${formatCurrency(preMonthly)}，后48期：${formatCurrency(afterMonthly)}`;
+          resultDailyPayment.innerHTML = is5MixRate
+            ? `日供：前36期${formatCurrency(preDaily)}，后24期${formatCurrency(afterDaily)}`
+            : is7Long25Rate
+              ? `日供：前60期${formatCurrency(preDaily)}，后24期${formatCurrency(afterDaily)}`
+              : is7LongMixRate
+                ? `日供：前60期${formatCurrency(preDaily)}，后24期${formatCurrency(afterDaily)}`
+                : `日供：前36期${formatCurrency(preDaily)}，后48期${formatCurrency(afterDaily)}`;
+          document.getElementById('resultYearlyInterest').textContent = '--';
+          document.getElementById('resultMonthlyInterest').textContent = '--';
+          document.getElementById('resultDailyInterest').textContent = '--';
+        } else {
+          resultStageMonthly.classList.add('hidden');
+          resultStageMonthly.innerHTML = '';
+          document.getElementById('resultMonthlyPayment').textContent = formatCurrency(monthlyPayment);
+          if (monthlyPayment > 0) {
+            resultDailyPayment.classList.remove('hidden');
+            resultDailyPayment.innerHTML = `日供：${formatCurrency(dailyPayment)}`;
+          } else {
+            resultDailyPayment.classList.add('hidden');
+          }
+          document.getElementById('resultYearlyInterest').textContent = formatCurrency(yearlyInterest);
+          document.getElementById('resultMonthlyInterest').textContent = formatCurrency(monthlyInterestCal);
+          document.getElementById('resultDailyInterest').textContent = formatCurrency(dailyInterest);
+        }
+      } else {
+        resultInterestContainer.classList.add('hidden');
+        installmentDetails.classList.add('hidden');
+      }
+
+      // 结果卡展示动画
+      resultCard.classList.remove('hidden');
+      resultCard.style.opacity = '0';
+      resultCard.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        calculateBtn.disabled = false;
+        calculateBtn.innerHTML = '<i class="fa fa-calculator"></i> 计算价格';
+        resultCard.style.opacity = '1';
+        resultCard.style.transform = 'translateY(0)';
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 500);
+    });
+
+    // 重新计算
+    recalculateBtn.addEventListener('click', function() {
+      resultCard.style.opacity = '0';
+      resultCard.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        resultCard.classList.add('hidden');
+        carPriceForm.reset();
+        // 重置默认选中项
+        document.getElementById('fullPayment').checked = true;
+        document.getElementById('freeCharger').checked = true;
+        document.getElementById('noSubsidy').checked = true;
+        document.getElementById('downPaymentByPercentage').checked = true;
+        // 重置容器显隐
+        installmentOptions.classList.add('hidden');
+        subsidyAmountContainer.classList.add('hidden');
+        downPaymentAmountContainer.classList.add('hidden');
+        loanAmountContainer.classList.add('hidden');
+        downPaymentPercentageContainer.classList.remove('hidden');
+        // 重置预览
+        previewStageMonthly.classList.add('hidden');
+        previewDailyPayment.classList.add('hidden');
+        resultStageMonthly.classList.add('hidden');
+        resultDailyPayment.classList.add('hidden');
+        // 重置动态项
+        while (discountContainer.children.length > 1) discountContainer.removeChild(discountContainer.lastChild);
+        while (extraContainer.children.length > 1) extraContainer.removeChild(extraContainer.lastChild);
+        discountContainer.querySelector('input').value = 0;
+        extraContainer.querySelector('input').value = 0;
+        document.getElementById('points').value = 20000;
+        document.getElementById('chargingKwh').value = 1000;
+        subsidyAmountInput.value = 10000;
+        downPaymentInput.value = 30;
+        downPaymentAmountInput.value = 0;
+        loanAmountInput.value = 0;
+        // 重置错误
+        Object.values(errorElements).forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.input-error').forEach(el => el.remove('input-error'));
+        // 更新预览
+        updateTaxPreview();
+        updateInstallmentPreview();
+        carPriceForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    });
+
+    // 金额格式化（元，无小数）
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('zh-CN', {
+        style: 'currency',
+        currency: 'CNY',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(Math.max(0, Math.round(amount)));
+    }
+
+    // 数字格式化
+    function formatNumber(num) {
+      return new Intl.NumberFormat('zh-CN').format(num);
+    }
+
+    // 输入框聚焦动画
+    document.querySelectorAll('input, select').forEach(field => {
+      field.addEventListener('focus', function() {
+        this.classList.add('scale-[1.02]');
+        this.style.transition = 'transform 0.2s ease';
+      });
+      field.addEventListener('blur', function() {
+        this.classList.remove('scale-[1.02]');
+      });
+    });
+
+    // 初始化预览
+    updateTaxPreview();
+    updateInstallmentPreview();
+  </script>
+</body>
+</html>
